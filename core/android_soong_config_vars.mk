@@ -1,5 +1,4 @@
-#
-# Copyright (C) 2018 The Android Open Source Project
+# Copyright (C) 2020 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,19 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
-# This is the list of modules that are specific to products that have telephony
-# hardware, and install on the system partition.
+# This file defines the Soong Config Variable namespace ANDROID, and also any
+# variables in that namespace.
 
-# Set flag to enable compilation of vendor value-adds to Android Telephony.
-TARGET_USES_QCOM_BSP_ATEL := true
+# The expectation is that no vendor should be using the ANDROID namespace. This
+# check ensures that we don't collide with any existing vendor usage.
 
-PRODUCT_PACKAGES := \
-    ONS \
-    CarrierDefaultApp \
-    CallLogBackup \
-    com.android.cellbroadcast \
-    CellBroadcastLegacyApp \
+ifdef SOONG_CONFIG_ANDROID
+$(error The Soong config namespace ANDROID is reserved.)
+endif
 
-PRODUCT_COPY_FILES := \
+$(call add_soong_config_namespace,ANDROID)
+
+# Add variables to the namespace below:
+
+$(call add_soong_config_var,ANDROID,TARGET_ENABLE_MEDIADRM_64)

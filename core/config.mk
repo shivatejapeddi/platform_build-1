@@ -32,6 +32,9 @@ ifdef KATI_PACKAGE_MK_DIR
   .KATI_READONLY := KATI_PACKAGE_MK_DIR
 endif
 
+# add flag to indicate pure AOSP or not.
+TARGET_FWK_SUPPORTS_FULL_VALUEADDS := true
+
 # Mark variables deprecated/obsolete
 CHANGES_URL := https://android.googlesource.com/platform/build/+/master/Changes.md
 .KATI_READONLY := CHANGES_URL
@@ -42,7 +45,7 @@ $(KATI_obsolete_var ANDROID_HOST_OUT,Use HOST_OUT instead. See $(CHANGES_URL)#AN
 $(KATI_obsolete_var ANDROID_PRODUCT_OUT,Use PRODUCT_OUT instead. See $(CHANGES_URL)#ANDROID_PRODUCT_OUT)
 $(KATI_obsolete_var ANDROID_HOST_OUT_TESTCASES,Use HOST_OUT_TESTCASES instead. See $(CHANGES_URL)#ANDROID_HOST_OUT_TESTCASES)
 $(KATI_obsolete_var ANDROID_TARGET_OUT_TESTCASES,Use TARGET_OUT_TESTCASES instead. See $(CHANGES_URL)#ANDROID_TARGET_OUT_TESTCASES)
-$(KATI_obsolete_var ANDROID_BUILD_TOP,Use '.' instead. See $(CHANGES_URL)#ANDROID_BUILD_TOP)
+$(KATI_deprecated_var ANDROID_BUILD_TOP,Use '.' instead. See $(CHANGES_URL)#ANDROID_BUILD_TOP)
 $(KATI_obsolete_var \
   ANDROID_TOOLCHAIN \
   ANDROID_TOOLCHAIN_2ND_ARCH \
@@ -1242,6 +1245,7 @@ endif
 endif
 
 ifeq ($(CALLED_FROM_SETUP),true)
+include $(BUILD_SYSTEM)/android_soong_config_vars.mk
 include $(BUILD_SYSTEM)/ninja_config.mk
 include $(BUILD_SYSTEM)/soong_config.mk
 endif
@@ -1253,5 +1257,8 @@ DEFAULT_DATA_OUT_MODULES := ltp $(ltp_packages) $(kselftest_modules)
 
 # Include any vendor specific config.mk file
 -include vendor/*/build/core/config.mk
+
+# Make RECORD_ALL_DEPS readonly and also set it if deps-license is a goal.
+RECORD_ALL_DEPS :=$= $(filter true,$(RECORD_ALL_DEPS))$(filter deps-license,$(MAKECMDGOALS))
 
 include $(BUILD_SYSTEM)/dumpvar.mk

@@ -362,6 +362,17 @@ BUILD_WITHOUT_PV := true
 
 ADDITIONAL_BUILD_PROPERTIES += net.bt.name=Android
 
+# QCV: initialize property - used to detect framework type
+ifeq ($(TARGET_FWK_SUPPORTS_FULL_VALUEADDS), true)
+  ADDITIONAL_BUILD_PROPERTIES += \
+        ro.vendor.qti.va_aosp.support=1
+  $(warning "Compile using modified AOSP tree supporting full vendor value-adds")
+else
+  ADDITIONAL_BUILD_PROPERTIES += \
+        ro.vendor.qti.va_aosp.support=0
+  $(warning "Compile using pure AOSP tree")
+endif
+
 # ------------------------------------------------------------
 # Define a function that, given a list of module tags, returns
 # non-empty if that module should be installed in /system.
@@ -1116,6 +1127,17 @@ $(if $(strip $(1)), \
 )
 endef
 
+# Prints a warning if the given list is non-empty, and prints it entries (stripping PRODUCT_OUT).
+# $(1): list of files to print
+# $(2): heading to print on failure
+define maybe-print-list-and-warn
+$(if $(strip $(1)), \
+  $(warning $(2)) \
+  $(info Offending entries:) \
+  $(foreach e,$(sort $(1)),$(info    $(patsubst $(PRODUCT_OUT)/%,%,$(e)))) \
+)
+endef
+
 ifdef FULL_BUILD
   ifneq (true,$(ALLOW_MISSING_DEPENDENCIES))
     # Check to ensure that all modules in PRODUCT_PACKAGES exist (opt in per product)
@@ -1214,14 +1236,16 @@ $(call dist-for-goals,droidcore,$(CERTIFICATE_VIOLATION_MODULES_FILENAME))
       $(makefile) produces files outside its artifact path requirement. \
       Allowed paths are $(subst $(space),$(comma)$(space),$(addsuffix *,$(requirements)))) \
     $(eval unused_allowed := $(filter-out $(files),$(allowed_patterns))) \
-    $(call maybe-print-list-and-error,$(unused_allowed),$(makefile) includes redundant allowed entries in its artifact path requirement.) \
+    $(call maybe-print-list-and-warn,$(unused_allowed),$(makefile) includes redundant allowed entries in its artifact path requirement.) \
     $(eval ### Optionally verify that nothing else produces files inside this artifact path requirement.) \
     $(eval extra_files := $(filter-out $(files) $(HOST_OUT)/%,$(product_target_FILES))) \
     $(eval files_in_requirement := $(filter $(path_patterns),$(extra_files))) \
     $(eval all_offending_files += $(files_in_requirement)) \
+    $(eval ignore_path := $(PRODUCT_ARTIFACT_PATH_REQUIREMENT_IGNORE_PATHS)) \
+    $(eval ignore_path_patterns := $(call resolve-product-relative-paths,$(ignore_path))) \
     $(eval allowed := $(PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST)) \
     $(eval allowed_patterns := $(call resolve-product-relative-paths,$(allowed))) \
-    $(eval offending_files := $(filter-out $(allowed_patterns),$(files_in_requirement))) \
+    $(eval offending_files := $(filter-out $(allowed_patterns) $(ignore_path_patterns)%,$(files_in_requirement))) \
     $(eval enforcement := $(PRODUCT_ENFORCE_ARTIFACT_PATH_REQUIREMENTS)) \
     $(if $(enforcement),\
       $(call maybe-print-list-and-error,$(offending_files),\
@@ -1229,7 +1253,7 @@ $(call dist-for-goals,droidcore,$(CERTIFICATE_VIOLATION_MODULES_FILENAME))
         $(PRODUCT_ARTIFACT_PATH_REQUIREMENT_HINT)) \
       $(eval unused_allowed := $(if $(filter true strict,$(enforcement)),\
         $(foreach p,$(allowed_patterns),$(if $(filter $(p),$(extra_files)),,$(p))))) \
-      $(call maybe-print-list-and-error,$(unused_allowed),$(INTERNAL_PRODUCT) includes redundant artifact path requirement allowed list entries.) \
+      $(call maybe-print-list-and-warn,$(unused_allowed),$(INTERNAL_PRODUCT) includes redundant artifact path requirement allowed list entries.) \
     ) \
   )
 $(PRODUCT_OUT)/offending_artifacts.txt:
@@ -1699,6 +1723,7 @@ $(LSDUMP_PATHS_FILE): PRIVATE_LSDUMP_PATHS := $(LSDUMP_PATHS)
 $(LSDUMP_PATHS_FILE):
 	@echo "Generate $@"
 	@rm -rf $@ && echo -e "$(subst :,:$(space),$(subst $(space),\n,$(PRIVATE_LSDUMP_PATHS)))" > $@
+$(call dist-for-goals,droidcore,$(LSDUMP_PATHS_FILE))
 
 .PHONY: check-elf-files
 check-elf-files:

@@ -133,6 +133,26 @@ PRODUCT_SYSTEM_DEVICE := generic
 
 _base_mk_allowed_list :=
 
+ifeq (true,$(TARGET_USES_QSSI))
+ifeq (true,$(TARGET_HW_DISK_ENCRYPTION))
+_base_mk_allowed_list += \
+    $(TARGET_COPY_OUT_SYSTEM_EXT)/lib64/libcryptfs_hw.so \
+    $(TARGET_COPY_OUT_SYSTEM_EXT)/lib64/vendor.qti.hardware.cryptfshw@1.0.so
+endif
+
+ifeq (1,$(USE_CUSTOM_AUDIO_POLICY))
+_base_mk_allowed_list += \
+    $(TARGET_COPY_OUT_SYSTEM_EXT)/lib64/vendor.qti.hardware.audiohalext@1.0.so
+endif
+
+_base_mk_allowed_list += \
+    $(TARGET_COPY_OUT_SYSTEM_EXT)/lib/vendor.qti.hardware.camera.device@1.0.so \
+    $(TARGET_COPY_OUT_SYSTEM_EXT)/lib64/libvr_amb_engine.so \
+    $(TARGET_COPY_OUT_SYSTEM_EXT)/lib64/libvr_object_engine.so \
+    $(TARGET_COPY_OUT_SYSTEM_EXT)/lib64/libvr_sam_wrapper.so \
+    $(TARGET_COPY_OUT_SYSTEM_EXT)/lib64/libvraudio.so
+endif
+
 _my_allowed_list := $(_base_mk_allowed_list)
 
 # For mainline, system.img should be mounted at /, so we include ROOT here.

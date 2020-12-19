@@ -102,6 +102,20 @@ ifneq ($(filter-out $(LOCAL_PROPRIETARY_MODULE),$(LOCAL_VENDOR_MODULE))$(filter-
 $(call pretty-error,Only one of LOCAL_PROPRIETARY_MODULE[$(LOCAL_PROPRIETARY_MODULE)] and LOCAL_VENDOR_MODULE[$(LOCAL_VENDOR_MODULE)] may be set, or they must be equal)
 endif
 
+ifeq ($(LOCAL_HOST_MODULE),true)
+my_image_variant := host
+else ifeq ($(LOCAL_VENDOR_MODULE),true)
+my_image_variant := vendor
+else ifeq ($(LOCAL_OEM_MODULE),true)
+my_image_variant := vendor
+else ifeq ($(LOCAL_ODM_MODULE),true)
+my_image_variant := vendor
+else ifeq ($(LOCAL_PRODUCT_MODULE),true)
+my_image_variant := product
+else
+my_image_variant := core
+endif
+
 non_system_module := $(filter true, \
    $(LOCAL_PRODUCT_MODULE) \
    $(LOCAL_SYSTEM_EXT_MODULE) \
@@ -810,6 +824,24 @@ ALL_MODULES += $(my_register_name)
 # recursively expanded.
 ALL_MODULES.$(my_register_name).CLASS := \
     $(ALL_MODULES.$(my_register_name).CLASS) $(LOCAL_MODULE_CLASS)
+ifdef LOCAL_ABI_CHECKER
+ifeq ($(LOCAL_ABI_CHECKER),true)
+ALL_MODULES.$(my_register_name).SRCS := \
+    $(ALL_MODULES.$(my_register_name).SRCS) $(LOCAL_SRC_FILES)
+ALL_MODULES.$(my_register_name).STATIC := \
+    $(ALL_MODULES.$(my_register_name).STATIC) $(LOCAL_STATIC_LIBRARIES)
+ALL_MODULES.$(my_register_name).WSTATIC := \
+    $(ALL_MODULES.$(my_register_name).WSTATIC) $(LOCAL_WHOLE_STATIC_LIBRARIES)
+ALL_MODULES.$(my_register_name).EXPORT := \
+    $(ALL_MODULES.$(my_register_name).EXPORT) $(LOCAL_EXPORT_C_INCLUDES)
+ALL_MODULES.$(my_register_name).CFLAGS := \
+    $(ALL_MODULES.$(my_register_name).CFLAGS) $(LOCAL_CFLAGS)
+ALL_MODULES.$(my_register_name).ABI_CHECKER := \
+   $(ALL_MODULES.$(my_register_name).ABI_CHECKER) $(LOCAL_ABI_CHECKER)
+ALL_MODULES.$(my_register_name).INCS := \
+    $(ALL_MODULES.$(my_register_name).INCS) $(LOCAL_C_INCLUDES)
+endif
+endif
 ALL_MODULES.$(my_register_name).PATH := \
     $(ALL_MODULES.$(my_register_name).PATH) $(LOCAL_PATH)
 ALL_MODULES.$(my_register_name).TAGS := \
@@ -938,7 +970,7 @@ INSTALLABLE_FILES.$(LOCAL_INSTALLED_MODULE).MODULE := $(my_register_name)
 ##########################################################
 # Track module-level dependencies.
 # Use $(LOCAL_MODULE) instead of $(my_register_name) to ignore module's bitness.
-ifneq (,$(filter deps-license,$(MAKECMDGOALS)))
+ifdef RECORD_ALL_DEPS
 ALL_DEPS.MODULES += $(LOCAL_MODULE)
 ALL_DEPS.$(LOCAL_MODULE).ALL_DEPS := $(sort \
   $(ALL_DEPS.$(LOCAL_MODULE).ALL_DEPS) \

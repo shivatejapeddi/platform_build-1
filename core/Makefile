@@ -377,22 +377,6 @@ KNOWN_OEM_THUMBPRINT_PROPERTIES := \
 OEM_THUMBPRINT_PROPERTIES := $(filter $(KNOWN_OEM_THUMBPRINT_PROPERTIES),\
     $(PRODUCT_OEM_PROPERTIES))
 
-# Display parameters shown under Settings -> About Phone
-ifeq ($(TARGET_BUILD_VARIANT),user)
-  # User builds should show:
-  # release build number or branch.buld_number non-release builds
-
-  # Dev. branches should have DISPLAY_BUILD_NUMBER set
-  ifeq (true,$(DISPLAY_BUILD_NUMBER))
-    BUILD_DISPLAY_ID := $(BUILD_ID).$(BUILD_NUMBER_FROM_FILE) $(BUILD_KEYS)
-  else
-    BUILD_DISPLAY_ID := $(BUILD_ID) $(BUILD_KEYS)
-  endif
-else
-  # Non-user builds should show detailed build information
-  BUILD_DISPLAY_ID := $(build_desc)
-endif
-
 # Accepts a whitespace separated list of product locales such as
 # (en_US en_AU en_GB...) and returns the first locale in the list with
 # underscores replaced with hyphens. In the example above, this will
@@ -441,9 +425,9 @@ endif
 	        AOSP_DEVICE="$(TARGET_DEVICE)" \
 	        PRODUCT_DEFAULT_LOCALE="$(call get-default-product-locale,$(PRODUCT_LOCALES))" \
 	        PRODUCT_DEFAULT_WIFI_CHANNELS="$(PRODUCT_DEFAULT_WIFI_CHANNELS)" \
-	        PRIVATE_BUILD_DESC="$(PRIVATE_BUILD_DESC)" \
 	        BUILD_ID="$(BUILD_ID)" \
-	        BUILD_DISPLAY_ID="$(BUILD_DISPLAY_ID)" \
+	        BUILD_KEYS="$(BUILD_KEYS)" \
+	        DISPLAY_BUILD_NUMBER="$(DISPLAY_BUILD_NUMBER)" \
 	        DATE="$(DATE_FROM_FILE)" \
 	        BUILD_USERNAME="$(BUILD_USERNAME)" \
 	        BUILD_HOSTNAME="$(BUILD_HOSTNAME)" \
@@ -651,6 +635,13 @@ $(INSTALLED_ODM_BUILD_PROP_TARGET): $(BUILDINFO_COMMON_SH) $(POST_PROCESS_PROPS)
 	        echo "#" >> $@;
 	$(hide) $(foreach line,$(FINAL_ODM_BUILD_PROPERTIES), \
 	    echo "$(line)" >> $@;)
+ifeq (true,$(TARGET_FWK_SUPPORTS_FULL_VALUEADDS))
+	$(hide) echo ro.vendor.qti.va_odm.support="1">>$@
+	$(warning "Compile using ODM with QC value-adds...")
+else
+	$(hide) echo ro.vendor.qti.va_odm.support="0">>$@
+	$(warning "Compile using ODM from Pure AOSP...")
+endif
 	$(hide) $(POST_PROCESS_PROPS) $@
 
 # -----------------------------------------------------------------
@@ -3102,7 +3093,7 @@ endif
 systemotherimage-nodeps: | $(INTERNAL_USERIMAGES_DEPS)
 	$(build-systemotherimage-target)
 
-endif # BUILDING_SYSTEM_OTHER_IMAGE
+endif # BOARD_USES_SYSTEM_OTHER
 
 
 # -----------------------------------------------------------------
@@ -3507,6 +3498,33 @@ BOARD_AVB_DTBO_ADD_HASH_FOOTER_ARGS += \
     --prop com.android.build.dtbo.fingerprint:$(BUILD_FINGERPRINT_FROM_FILE)
 
 # The following vendor- and odm-specific images needs explicit SPL set per board.
+ifdef BOOT_SECURITY_PATCH
+BOARD_AVB_BOOT_ADD_HASH_FOOTER_ARGS += \
+    --prop com.android.build.boot.security_patch:$(BOOT_SECURITY_PATCH)
+endif
+
+ifdef VENDOR_SECURITY_PATCH
+BOARD_AVB_VENDOR_ADD_HASHTREE_FOOTER_ARGS += \
+    --prop com.android.build.vendor.security_patch:$(VENDOR_SECURITY_PATCH)
+endif
+
+ifdef ODM_SECURITY_PATCH
+BOARD_AVB_ODM_ADD_HASHTREE_FOOTER_ARGS += \
+    --prop com.android.build.odm.security_patch:$(ODM_SECURITY_PATCH)
+endif
+
+# Appends security patch level as a AVB property descriptor
+
+BOARD_AVB_SYSTEM_ADD_HASHTREE_FOOTER_ARGS += \
+    --prop com.android.build.system.security_patch:$(PLATFORM_SECURITY_PATCH)
+
+BOARD_AVB_PRODUCT_ADD_HASHTREE_FOOTER_ARGS += \
+    --prop com.android.build.product.security_patch:$(PLATFORM_SECURITY_PATCH)
+
+BOARD_AVB_PRODUCT_SERVICES_ADD_HASHTREE_FOOTER_ARGS += \
+    --prop com.android.build.product_services.security_patch:$(PLATFORM_SECURITY_PATCH)
+
+# The following vendor- and odm-specific images needs explicitly set per board.
 ifdef BOOT_SECURITY_PATCH
 BOARD_AVB_BOOT_ADD_HASH_FOOTER_ARGS += \
     --prop com.android.build.boot.security_patch:$(BOOT_SECURITY_PATCH)
@@ -3934,8 +3952,8 @@ my_decompress_tools := \
 $(BUILT_KERNEL_CONFIGS_FILE): .KATI_IMPLICIT_OUTPUTS := $(BUILT_KERNEL_VERSION_FILE)
 $(BUILT_KERNEL_CONFIGS_FILE): PRIVATE_DECOMPRESS_TOOLS := $(my_decompress_tools)
 $(BUILT_KERNEL_CONFIGS_FILE): $(foreach pair,$(my_decompress_tools),$(call word-colon,2,$(pair)))
-$(BUILT_KERNEL_CONFIGS_FILE): $(EXTRACT_KERNEL) $(INSTALLED_KERNEL_TARGET)
-	$< --tools $(PRIVATE_DECOMPRESS_TOOLS) --input $(INSTALLED_KERNEL_TARGET) \
+$(BUILT_KERNEL_CONFIGS_FILE): $(EXTRACT_KERNEL) $(firstword $(INSTALLED_KERNEL_TARGET))
+	$< --tools $(PRIVATE_DECOMPRESS_TOOLS) --input $(firstword $(INSTALLED_KERNEL_TARGET)) \
 	  --output-configs $@ \
 	  --output-version $(BUILT_KERNEL_VERSION_FILE)
 
@@ -5636,3 +5654,17 @@ $(call dist-for-goals,haiku,$(SOONG_FUZZ_PACKAGING_ARCH_MODULES))
 # -----------------------------------------------------------------
 # The makefile for haiku line coverage.
 include $(BUILD_SYSTEM)/line_coverage.mk
+
+ifeq (true,$(PRODUCT_USE_DYNAMIC_PARTITIONS))
+define build-dynamic-partition-metadata
+    $(if $(filter true,$(AB_OTA_UPDATER)), \
+       echo "ab_update=true" >> $(PRODUCT_OUT)/dynamic_partition_metadata.txt)
+    $(call dump-dynamic-partitions-info,$(PRODUCT_OUT)/dynamic_partition_metadata.txt)
+endef
+
+.PHONY: BUILT_DYNAMIC_INFORMATION
+BUILT_DYNAMIC_INFORMATION:
+	@rm -f $(PRODUCT_OUT)/dynamic_partition_metadata.txt
+	$(call build-dynamic-partition-metadata)
+droidcore: BUILT_DYNAMIC_INFORMATION
+endif

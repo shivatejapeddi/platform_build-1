@@ -95,6 +95,8 @@ import ota_from_target_files
 logger = logging.getLogger(__name__)
 
 OPTIONS = common.OPTIONS
+# Always turn on verbose logging.
+OPTIONS.verbose = True
 OPTIONS.framework_target_files = None
 OPTIONS.framework_item_list = None
 OPTIONS.framework_misc_info_keys = None
@@ -182,6 +184,7 @@ DEFAULT_FRAMEWORK_MISC_INFO_KEYS = (
 
 DEFAULT_VENDOR_ITEM_LIST = (
     'META/boot_filesystem_config.txt',
+    'META/file_contexts.bin',
     'META/otakeys.txt',
     'META/releasetools.py',
     'META/vendor_filesystem_config.txt',
@@ -1108,9 +1111,6 @@ def main():
       (OPTIONS.output_dir is not None and OPTIONS.output_item_list is None)):
     common.Usage(__doc__)
     sys.exit(1)
-
-  # Always turn on verbose logging.
-  OPTIONS.verbose = True
 
   if OPTIONS.framework_item_list:
     framework_item_list = common.LoadListFromFile(OPTIONS.framework_item_list)

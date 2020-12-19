@@ -51,3 +51,10 @@ endif # $(my_skip_non_preferred_arch) not true
 LOCAL_2ND_ARCH_VAR_PREFIX :=
 
 my_module_arch_supported :=
+LOCAL_SRC_FILES :=
+LOCAL_STATIC_LIBRARIES :=
+LOCAL_WHOLE_STATIC_LIBRARIES :=
+LOCAL_EXPORT_C_INCLUDES :=
+LOCAL_CFLAGS :=
+LOCAL_ABI_CHECKER :=
+LOCAL_C_INCLUDES :=
